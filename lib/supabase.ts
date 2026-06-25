@@ -9,6 +9,10 @@ export const supabase = createBrowserClient(
   {
     db: {
       schema: 'kuntiy'
+    },
+    cookieOptions: {
+      sameSite: 'none',
+      secure: true
     }
   }
 );

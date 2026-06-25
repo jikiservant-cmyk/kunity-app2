@@ -9,16 +9,20 @@ export async function POST(req: NextRequest) {
     await apiLimiter.check(10, ip);
 
     const body = await req.json();
-    const { amount, currency = "UGX", memberId, organizationId, phoneNumber } = body;
+    const { amount, currency = "UGX", memberId, organizationId, phoneNumber, paymentTypeCode } = body;
 
     if (!amount || amount <= 0 || !memberId || !organizationId || !phoneNumber) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
 
+    const finalPaymentTypeCode = paymentTypeCode || 'account_activation';
     const intent = await paymentGateway.createPaymentIntent(amount, currency, {
       source: 'web_app',
       phoneNumber,
-      reference: `CARD-${Date.now()}`
+      memberId,
+      organizationId,
+      paymentTypeCode: finalPaymentTypeCode,
+      reference: finalPaymentTypeCode === 'account_activation' ? `PAY-ACT-${Date.now()}` : `PAY-${Date.now()}`
     });
 
     // Make an admin auth client to bypass RLS to insert quickly
@@ -43,6 +47,7 @@ export async function POST(req: NextRequest) {
       status: 'pending',
       direction: 'inbound',
       idempotency_key: intent.id,
+      payment_type: finalPaymentTypeCode,
       payload: intent
     });
 
